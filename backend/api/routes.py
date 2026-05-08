@@ -41,3 +41,15 @@ async def status(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+@router.get("/status/{task_id}/timestamps")
+async def get_timestamps(task_id: str):
+    import os
+    from fastapi.responses import FileResponse
+    from backend.core.config import TIMESTAMPS_DIR
+    
+    ts_path = os.path.join(str(TIMESTAMPS_DIR), f"{task_id}.json")
+    if os.path.exists(ts_path):
+        return FileResponse(ts_path)
+    raise HTTPException(status_code=404, detail="Timestamps not found")
+

@@ -9,17 +9,17 @@ from backend.tasks.manager import task_manager
 logger = get_logger("f5_engine")
 
 class F5Engine:
-    def generate(self, task_id: str, text: str, ref_audio: str = "", ref_text: str = ""):
+    def generate(self, task_id: str, text: str, ref_audio: str = "", ref_text: str = "", custom_output: str = None):
         output_filename = f"{task_id}.wav"
-        output_path = os.path.join(str(AUDIO_DIR), output_filename)
+        output_path = custom_output if custom_output else os.path.join(str(AUDIO_DIR), output_filename)
         
         task_manager.update_task(task_id, status="running", progress_text="Initializing F5-TTS...")
         
         cmd = [
             F5_PYTHON, "-m", "f5_tts.infer.infer_cli",
             "--gen_text", text,
-            "--output_dir", str(AUDIO_DIR),
-            "--output_file", output_filename
+            "--output_dir", os.path.dirname(output_path),
+            "--output_file", os.path.basename(output_path)
         ]
         
         if ref_audio:

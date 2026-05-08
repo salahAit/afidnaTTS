@@ -108,27 +108,43 @@
             const startData = await res.json();
             const taskId = startData.task_id;
             
-            // Polling loop
-            while (true) {
-                await new Promise(r => setTimeout(r, 1000)); // Poll every 1s
-                const statusRes = await fetch(`/api/projects/${project.id}/generate?task_id=${taskId}&text=${encodeURIComponent(text)}`);
-                const statusData = await statusRes.json();
+            // WebSocket connection for real-time updates
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // We use port 8000 as configured in backend/core/config.py
+            const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/tasks/${taskId}`;
+            
+            await new Promise((resolve, reject) => {
+                const ws = new WebSocket(wsUrl);
                 
-                if (statusData.status === 'completed') {
-                    toast.success("تم توليد الصوت بنجاح! / Audio generated successfully!");
-                    await invalidateAll(); // Refresh history
-                    break;
-                } else if (statusData.status === 'failed') {
-                    throw new Error(statusData.progress || i18n.t('tts.error'));
-                }
+                ws.onmessage = async (event) => {
+                    const statusData = JSON.parse(event.data);
+                    
+                    if (statusData.status === 'completed') {
+                        // Finalize with SvelteKit API to save to DB
+                        const finalizeRes = await fetch(`/api/projects/${project.id}/generate?task_id=${taskId}&text=${encodeURIComponent(text)}`);
+                        if (finalizeRes.ok) {
+                            toast.success("تم توليد الصوت بنجاح!");
+                            await invalidateAll();
+                            ws.close();
+                            resolve(null);
+                        } else {
+                            ws.close();
+                            reject(new Error("Failed to finalize generation"));
+                        }
+                    } else if (statusData.status === 'failed') {
+                        ws.close();
+                        reject(new Error(statusData.progress_text || i18n.t('tts.error')));
+                    } else {
+                        progressText = statusData.progress_text;
+                        progressValue = statusData.progress;
+                    }
+                };
                 
-                // Parse progress string
-                progressText = statusData.progress;
-                if (progressText && progressText.includes('%')) {
-                    const match = progressText.match(/(\d+)%/);
-                    if (match) progressValue = parseInt(match[1]);
-                }
-            }
+                ws.onerror = () => {
+                    ws.close();
+                    reject(new Error("WebSocket connection error"));
+                };
+            });
 		} catch (e: any) {
 			toast.error(e.message || i18n.t('tts.error'));
 		} finally {
@@ -259,11 +275,16 @@
                     {#each generations as gen}
                         <Card.Root class="glass-card overflow-hidden">
                             <Card.Content class="p-3 space-y-3">
-                                <p class="text-xs text-muted-foreground line-clamp-2" dir={i18n.dir}>
+                                <p class="text-xs text-muted-foreground line-clamp-2 mb-2" dir={i18n.dir}>
                                     "{gen.text_snippet}"
                                 </p>
                                 
-                                <audio src={gen.audio_path} controls class="w-full h-8"></audio>
+                                <SmartPlayer 
+                                    audioSrc={gen.audio_path} 
+                                    timestampsUrl={gen.timestamps_url}
+                                    text={gen.text_snippet}
+                                    taskId={null} 
+                                />
                                 
                                 <div class="flex justify-between items-center text-[10px] text-muted-foreground">
                                     <span class="flex items-center gap-1">

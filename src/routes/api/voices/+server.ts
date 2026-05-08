@@ -5,21 +5,27 @@ import path from 'path';
 const VOICES_DIR = path.join(process.cwd(), 'static', 'voices');
 const VOICES_META = path.join(VOICES_DIR, 'voices.json');
 
-function loadVoicesMeta(): any[] {
-    if (existsSync(VOICES_META)) {
-        return JSON.parse(readFileSync(VOICES_META, 'utf-8'));
-    }
-    return [];
-}
+import { json } from '@sveltejs/kit';
+import { writeFileSync, existsSync, unlinkSync } from 'fs';
+import path from 'path';
+import { queries } from '$lib/server/schema';
 
-function saveVoicesMeta(voices: any[]) {
-    writeFileSync(VOICES_META, JSON.stringify(voices, null, 2));
-}
+const VOICES_DIR = path.join(process.cwd(), 'static', 'voices');
 
 // GET: List all custom voices
 export function GET() {
-    const voices = loadVoicesMeta();
-    return json(voices);
+    const voices = queries.getVoices.all();
+    // Map database fields to the format expected by the frontend
+    const mappedVoices = voices.map((v: any) => ({
+        id: v.id.toString(),
+        name: v.name,
+        lang: v.language,
+        ref_audio: v.ref_audio_path,
+        ref_text: v.ref_text,
+        gender: v.gender,
+        custom: true
+    }));
+    return json(mappedVoices);
 }
 
 // POST: Upload a new custom voice
@@ -35,26 +41,30 @@ export async function POST({ request }) {
             return json({ error: "Name and audio file are required" }, { status: 400 });
         }
 
-        const id = `custom_${Date.now()}`;
         const ext = audioFile.name.split('.').pop() || 'wav';
-        const fileName = `${id}.${ext}`;
+        const fileName = `voice_${Date.now()}.${ext}`;
         const filePath = path.join(VOICES_DIR, fileName);
+        const publicPath = `/voices/${fileName}`;
 
         const buffer = Buffer.from(await audioFile.arrayBuffer());
         writeFileSync(filePath, buffer);
 
+        const result = queries.insertVoice.get(
+            name,
+            publicPath,
+            refText || '',
+            'unknown', // default gender
+            lang || 'ar'
+        ) as { id: number };
+
         const voice = {
-            id,
+            id: result.id.toString(),
             name,
             lang: lang || 'ar',
-            ref_audio: filePath,
+            ref_audio: publicPath,
             ref_text: refText || '',
             custom: true
         };
-
-        const voices = loadVoicesMeta();
-        voices.push(voice);
-        saveVoicesMeta(voices);
 
         return json(voice);
     } catch (error: any) {
@@ -66,14 +76,17 @@ export async function POST({ request }) {
 export async function DELETE({ request }) {
     try {
         const { id } = await request.json();
-        let voices = loadVoicesMeta();
-        const voice = voices.find((v: any) => v.id === id);
+        const voiceId = parseInt(id);
+        
+        // Find voice to get its path for deletion
+        const db = await import('$lib/server/db');
+        const voice = db.default.prepare("SELECT * FROM voices WHERE id = ?").get(voiceId) as any;
 
         if (voice) {
-            const audioPath = voice.ref_audio;
-            if (existsSync(audioPath)) unlinkSync(audioPath);
-            voices = voices.filter((v: any) => v.id !== id);
-            saveVoicesMeta(voices);
+            const publicPath = voice.ref_audio_path;
+            const absolutePath = path.join(process.cwd(), 'static', publicPath);
+            if (existsSync(absolutePath)) unlinkSync(absolutePath);
+            queries.deleteVoice.run(voiceId);
         }
 
         return json({ success: true });
@@ -81,3 +94,4 @@ export async function DELETE({ request }) {
         return json({ error: error.message }, { status: 500 });
     }
 }
+

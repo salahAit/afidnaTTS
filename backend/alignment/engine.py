@@ -5,6 +5,8 @@ import subprocess
 from backend.core.config import TIMESTAMPS_DIR
 from backend.core.logging import get_logger
 
+from backend.utils.audio_utils import get_audio_duration
+
 logger = get_logger("alignment")
 
 class AlignmentEngine:
@@ -13,24 +15,30 @@ class AlignmentEngine:
         output_json = os.path.join(str(TIMESTAMPS_DIR), f"{task_id}.json")
         
         # Phase 5 Implementation: 
-        # For now, we'll implement a 'Smart Estimator' that we can later 
-        # swap with a real Aeneas/MFA call.
+        # Using Smart Weighting Estimator based on audio duration and character count.
         
         words = text.split()
         if not words: return
         
-        # Placeholder for real alignment logic
-        # In a production environment, we'd call aeneas here.
+        total_duration = get_audio_duration(audio_path)
+        if total_duration <= 0:
+            total_duration = len(words) * 0.4 # Fallback
+            
+        # Weigh words by their length to distribute duration more naturally
+        char_counts = [len(w) for w in words]
+        total_chars = sum(char_counts)
         
-        # Simulation of timestamp generation for the UI
-        # (Assuming average speaking rate of 150 words per minute)
-        duration_per_word = 0.4 # seconds
         timestamps = []
         current_time = 0.0
         
-        for word in words:
+        for i, word in enumerate(words):
+            # Calculate weight (at least a small weight for short words)
+            word_weight = char_counts[i] / total_chars
+            word_duration = total_duration * word_weight
+            
             start = round(current_time, 3)
-            end = round(current_time + duration_per_word, 3)
+            end = round(current_time + word_duration, 3)
+            
             timestamps.append({
                 "word": word,
                 "start": start,
@@ -41,7 +49,7 @@ class AlignmentEngine:
         with open(output_json, 'w', encoding='utf-8') as f:
             json.dump(timestamps, f, ensure_ascii=False, indent=2)
         
-        logger.info(f"Alignment generated for {task_id}")
+        logger.info(f"Alignment (Weighted Estimation) generated for {task_id}: {total_duration}s")
         return output_json
 
 alignment_engine = AlignmentEngine()

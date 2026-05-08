@@ -4,7 +4,7 @@
     import { Button } from "$lib/components/ui/button/index.js";
     import { Progress } from "$lib/components/ui/progress/index.js";
 
-    let { audioSrc, taskId, text } = $props();
+    let { audioSrc, taskId, text, timestampsUrl = "" } = $props();
 
     let audio: HTMLAudioElement;
     let isPlaying = $state(false);
@@ -14,7 +14,8 @@
     let activeWordIndex = $state(-1);
 
     onMount(async () => {
-        const res = await fetch(`/api/generations/0/timestamps?task_id=${taskId}`);
+        const url = timestampsUrl || `/api/generations/0/timestamps?task_id=${taskId}`;
+        const res = await fetch(url);
         if (res.ok) {
             timestamps = await res.json();
         }

@@ -5,11 +5,15 @@ import path from 'path';
 import { BUILTIN_VOICES, type Voice } from '$lib/constants/voices';
 
 function getAllVoices(): Voice[] {
-    const customPath = path.join(process.cwd(), 'static', 'voices', 'voices.json');
-    let custom: Voice[] = [];
-    if (existsSync(customPath)) {
-        custom = JSON.parse(readFileSync(customPath, 'utf-8'));
-    }
+    const dbVoices = queries.getVoices.all() as any[];
+    const custom = dbVoices.map(v => ({
+        id: v.id.toString(),
+        name: v.name,
+        lang: v.language,
+        ref_audio: v.ref_audio_path,
+        ref_text: v.ref_text,
+        custom: true
+    }));
     return [...BUILTIN_VOICES, ...custom];
 }
 
@@ -72,7 +76,31 @@ export async function GET({ url, params }) {
             writeFileSync(filePath, buffer);
             
             const audioPath = `/audio/${fileName}`;
-            const result = queries.insertGeneration.get(projectId, text || "Generated Audio", audioPath, 0, 'AfidnaTTS') as { id: number };
+
+            // Download Timestamps (New Phase 5 & 11)
+            let timestampsUrl = "";
+            try {
+                const tsRes = await fetch(`http://localhost:8000/api/v1/status/${taskId}/timestamps`);
+                if (tsRes.ok) {
+                    const tsData = await tsRes.json();
+                    const tsFileName = `ts_${projectId}_${Date.now()}.json`;
+                    const tsFilePath = path.join(process.cwd(), 'static', 'timestamps', tsFileName);
+                    writeFileSync(tsFilePath, JSON.stringify(tsData));
+                    timestampsUrl = `/timestamps/${tsFileName}`;
+                }
+            } catch (e) {
+                console.error("Failed to fetch timestamps:", e);
+            }
+
+            const result = queries.insertGeneration.get(
+                projectId, 
+                text || "Generated Audio", 
+                audioPath, 
+                timestampsUrl,
+                JSON.stringify({ voice_id: statusData.metadata?.voice_id }),
+                0, 
+                'AfidnaTTS'
+            ) as { id: number };
 
             return json({
                 status: 'completed',
@@ -81,6 +109,8 @@ export async function GET({ url, params }) {
                     project_id: projectId,
                     text_snippet: text,
                     audio_path: audioPath,
+                    timestamps_url: timestampsUrl,
+                    metadata: JSON.stringify({ voice_id: statusData.metadata?.voice_id }),
                     duration: 0,
                     model: 'AfidnaTTS',
                     created_at: new Date().toISOString()

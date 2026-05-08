@@ -53,17 +53,39 @@ class GenerationOrchestrator:
             engine_name = TTS_ROUTING.get(lang, DEFAULT_ENGINE)
             logger.info(f"Using engine '{engine_name}' for language '{lang}'")
 
-            combined_text = " ".join(chunks)
-            
             if engine_name == "f5tts":
-                f5_engine.generate(task_id, combined_text, ref_audio, ref_text)
+                chunk_files = []
+                for i, chunk in enumerate(chunks):
+                    chunk_id = f"{task_id}_chunk_{i}"
+                    chunk_path = os.path.join(str(AUDIO_DIR), f"{chunk_id}.wav")
+                    task_manager.update_task(task_id, progress_text=f"Generating chunk {i+1}/{len(chunks)}...")
+                    f5_engine.generate(chunk_id, chunk, ref_audio, ref_text, custom_output=chunk_path)
+                    if os.path.exists(chunk_path):
+                        chunk_files.append(chunk_path)
+                    else:
+                        raise Exception(f"Chunk {i} generation failed.")
                 
-                # 4. Post-Generation: Cache & Alignment
+                # 4. Stitching
+                task_manager.update_task(task_id, progress_text="Stitching audio chunks...")
                 target_path = os.path.join(str(AUDIO_DIR), f"{task_id}.wav")
+                from backend.utils.audio_utils import stitch_audio
+                stitch_audio(chunk_files, target_path)
+                
+                # Cleanup chunks
+                for cf in chunk_files:
+                    try: os.remove(cf)
+                    except: pass
+
+                # 5. Post-Generation: Cache & Alignment
                 if os.path.exists(target_path):
                     post_processor.process(target_path)
                     cache_system.save(task_id, text, voice_id, lang)
+                    # For alignment, we pass the combined text
+                    combined_text = " ".join(chunks)
                     alignment_engine.align(task_id, target_path, combined_text)
+                    
+                    # Final success update
+                    task_manager.update_task(task_id, status="completed", progress=100, output_path=f"/audio/{task_id}.wav")
             else:
                 task_manager.update_task(task_id, status="failed", progress_text=f"Engine {engine_name} not yet implemented.")
 
