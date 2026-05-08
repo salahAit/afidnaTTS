@@ -1,14 +1,27 @@
 import { json } from '@sveltejs/kit';
 import { queries } from '$lib/server/schema';
-import { writeFileSync } from 'fs';
+import { writeFileSync, existsSync, readFileSync } from 'fs';
 import path from 'path';
+import { BUILTIN_VOICES, type Voice } from '$lib/constants/voices';
+
+function getAllVoices(): Voice[] {
+    const customPath = path.join(process.cwd(), 'static', 'voices', 'voices.json');
+    let custom: Voice[] = [];
+    if (existsSync(customPath)) {
+        custom = JSON.parse(readFileSync(customPath, 'utf-8'));
+    }
+    return [...BUILTIN_VOICES, ...custom];
+}
 
 export async function POST({ params, request }) {
     try {
         const projectId = parseInt(params.id);
-        const { text } = await request.json();
+        const { text, voice_id } = await request.json();
         
         if (!text) return json({ error: "Text is required" }, { status: 400 });
+
+        const allVoices = getAllVoices();
+        const selectedVoice = allVoices.find(v => v.id === voice_id) || allVoices[0];
 
         queries.updateProjectContent.run(text, projectId);
 
@@ -16,7 +29,11 @@ export async function POST({ params, request }) {
         const response = await fetch("http://localhost:8000/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text })
+            body: JSON.stringify({ 
+                text,
+                ref_audio: selectedVoice.ref_audio,
+                ref_text: selectedVoice.ref_text
+            })
         });
 
         if (!response.ok) throw new Error("TTS Engine generation failed to start");
