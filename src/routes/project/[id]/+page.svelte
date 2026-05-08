@@ -10,6 +10,7 @@
     import * as Select from "$lib/components/ui/select/index.js";
 	import { i18n } from "$lib/stores/i18n.svelte";
 	import { BUILTIN_VOICES, type Voice } from "$lib/constants/voices";
+    import SmartPlayer from "$lib/components/SmartPlayer.svelte";
 	import { toast } from "svelte-sonner";
 	import { invalidateAll } from "$app/navigation";
     import { onMount } from "svelte";

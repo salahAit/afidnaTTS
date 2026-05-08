@@ -25,12 +25,14 @@ export async function POST({ params, request }) {
 
         queries.updateProjectContent.run(text, projectId);
 
-        // Start FastAPI task
-        const response = await fetch("http://localhost:8000/generate", {
+        // Start FastAPI task (V2 Backend)
+        const response = await fetch("http://localhost:8000/api/v1/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 text,
+                lang: selectedVoice.lang,
+                voice_id: selectedVoice.id,
                 ref_audio: selectedVoice.ref_audio,
                 ref_text: selectedVoice.ref_text
             })
@@ -54,14 +56,14 @@ export async function GET({ url, params }) {
         
         if (!taskId) return json({ error: "task_id required" }, { status: 400 });
 
-        const statusRes = await fetch(`http://localhost:8000/status/${taskId}`);
+        const statusRes = await fetch(`http://localhost:8000/api/v1/status/${taskId}`);
         if (!statusRes.ok) throw new Error("Task not found");
         
         const statusData = await statusRes.json();
         
         if (statusData.status === 'completed') {
             // Download audio
-            const audioRes = await fetch(`http://localhost:8000/audio/${taskId}`);
+            const audioRes = await fetch(`http://localhost:8000/audio/${statusData.output_path.split('/').pop()}`);
             const arrayBuffer = await audioRes.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             
