@@ -88,19 +88,23 @@ export function initDb() {
 initDb();
 
 export const queries = {
+    // Projects
     getProjects: db.prepare("SELECT * FROM projects ORDER BY created_at DESC"),
-    getProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
+    getProjectById: db.prepare("SELECT * FROM projects WHERE id = ?"),
     insertProject: db.prepare("INSERT INTO projects (title, description, content) VALUES (?, ?, ?) RETURNING id"),
+    updateProject: db.prepare("UPDATE projects SET title = ?, description = ?, content = ? WHERE id = ?"),
     updateProjectContent: db.prepare("UPDATE projects SET content = ? WHERE id = ?"),
     deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
     
-    getGenerations: db.prepare("SELECT * FROM generations WHERE project_id = ? ORDER BY created_at DESC"),
+    // Generations
+    getGenerationsByProjectId: db.prepare("SELECT * FROM generations WHERE project_id = ? ORDER BY created_at DESC"),
     insertGeneration: db.prepare(`
         INSERT INTO generations (project_id, text_snippet, audio_path, timestamps_url, metadata, duration, model) 
         VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
     `),
     deleteGeneration: db.prepare("DELETE FROM generations WHERE id = ?"),
     
+    // Voices
     getVoices: db.prepare("SELECT * FROM voices ORDER BY name ASC"),
     insertVoice: db.prepare("INSERT INTO voices (name, ref_audio_path, ref_text, gender, language) VALUES (?, ?, ?, ?, ?) RETURNING id"),
     deleteVoice: db.prepare("DELETE FROM voices WHERE id = ?")

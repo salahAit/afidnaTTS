@@ -19,7 +19,7 @@ class F5Engine:
         task_manager.update_task(task_id, status="running", progress_text="Initializing F5-TTS...")
         
         cmd = [
-            F5_PYTHON, "-m", "f5_tts.infer.infer_cli",
+            F5_PYTHON, "backend/tts/f5/infer.py",
             "--gen_text", text,
             "--output_dir", os.path.dirname(output_path),
             "--output_file", os.path.basename(output_path)
@@ -33,6 +33,8 @@ class F5Engine:
                 cmd.extend(["--vocab_file", ARABIC_MODEL_VOCAB])
             if os.path.exists(ARABIC_MODEL_CONFIG):
                 cmd.extend(["--model_cfg", ARABIC_MODEL_CONFIG])
+            # Checkpoint from user likely doesn't have EMA keys
+            # Use --use_ema only if specifically needed. For the provided base.pt, we keep it False.
         
         if ref_audio:
             cmd.extend(["--ref_audio", ref_audio])
@@ -44,9 +46,11 @@ class F5Engine:
             logger.info(f"Starting F5 generation for task {task_id}")
             process = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
             
+            full_output = []
             for line in process.stderr:
                 line = line.strip()
                 if not line: continue
+                full_output.append(line)
                 
                 if "%" in line:
                     try:
@@ -63,8 +67,9 @@ class F5Engine:
                 task_manager.update_task(task_id, status="completed", progress=100, output_path=f"/audio/{output_filename}")
                 logger.info(f"F5 generation successful: {task_id}")
             else:
-                task_manager.update_task(task_id, status="failed", progress_text="CLI process failed.")
-                logger.error(f"F5 generation failed for {task_id}")
+                error_msg = "\n".join(full_output[-5:]) if full_output else "Unknown error"
+                task_manager.update_task(task_id, status="failed", progress_text=f"Generation failed: {error_msg}")
+                logger.error(f"F5 generation failed for {task_id}: {error_msg}")
 
         except Exception as e:
             logger.error(f"Error in F5Engine: {str(e)}")
