@@ -38,6 +38,8 @@ data/*.db-journal
 backend/storage/audio/*
 backend/storage/cache/*
 backend/storage/timestamps/*
+backend/storage/arabic_model/*.pt
+backend/storage/arabic_model/*.safetensors
 !backend/storage/voices/arabic_ref.wav
 static/audio/*
 static/timestamps/*
@@ -45,3 +47,13 @@ static/voices/*
 !static/audio/.gitkeep
 !static/timestamps/.gitkeep
 !static/voices/.gitkeep
+
+# F5-TTS Unified
+backend/tts/f5/venv/
+backend/tts/f5/__pycache__/
+backend/tts/f5/f5_tts/**/__pycache__/
+test_*.wav
+test_*.txt
+test_*.log
+*.wav
+*.log

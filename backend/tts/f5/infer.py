@@ -6,8 +6,11 @@ import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
 
-# Add current directory to sys.path to find backend modules if needed
-sys.path.append(os.getcwd())
+# Add current directory and the parent directory to sys.path
+# to find the local f5_tts package and other backend modules
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
 from f5_tts.model import DiT
 from hydra.utils import get_class
@@ -27,7 +30,7 @@ def main():
     parser.add_argument("--output_dir", type=str, default="output")
     parser.add_argument("--output_file", type=str, default="out.wav")
     parser.add_argument("--ckpt_file", type=str, required=True)
-    parser.add_argument("--vocab_file", type=str, required=True)
+    parser.add_argument("--vocab_file", type=str, default="backend/tts/f5/vocab.txt")
     parser.add_argument("--model_cfg", type=str, required=True)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--use_ema", action="store_true", default=False)
@@ -38,8 +41,8 @@ def main():
     
     # Load config
     model_cfg = OmegaConf.load(args.model_cfg)
-    model_cls = get_class(f"f5_tts.model.{model_cfg.model.backbone}")
-    model_arc = model_cfg.model.arch
+    model_cls = get_class(model_cfg.model.target)
+    model_arc = model_cfg.model.params
     
     # Load model
     model_obj = load_model(

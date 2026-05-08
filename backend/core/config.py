@@ -24,7 +24,7 @@ TTS_ROUTING = {
 DEFAULT_ENGINE = "f5tts"
 
 # ──────────────────────────── F5-TTS Settings ──────────────────
-F5_PYTHON = os.environ.get("F5_PYTHON", "/home/msi/f5-tts/venv/bin/python")
+F5_PYTHON = os.environ.get("F5_PYTHON", str(BASE_DIR / "tts" / "f5" / "venv" / "bin" / "python"))
 F5_OUTPUT_DIR = str(AUDIO_DIR)
 
 # ──────────────────────────── Chunking ─────────────────────────
@@ -48,6 +48,6 @@ CLEAR_VRAM_AFTER_GENERATION = True
 
 # ──────────────────────────── Arabic Model ─────────────────────
 # Using the verified Arabic checkpoint and vocab files
-ARABIC_MODEL_CKPT = "/home/msi/Documents/base.pt"
+ARABIC_MODEL_CKPT = str(STORAGE_DIR / "arabic_model" / "base.pt")
 ARABIC_MODEL_VOCAB = str(STORAGE_DIR / "arabic_model" / "vocab.txt")
 ARABIC_MODEL_CONFIG = str(STORAGE_DIR / "arabic_model" / "F5TTS_Base_8_18.yaml")
