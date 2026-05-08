@@ -2,6 +2,7 @@
 import hashlib
 import os
 import shutil
+from typing import Optional
 from backend.core.config import CACHE_DIR, AUDIO_DIR
 from backend.core.logging import get_logger
 

@@ -1,16 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { writeFileSync, readdirSync, existsSync, unlinkSync, readFileSync } from 'fs';
 import path from 'path';
-
-const VOICES_DIR = path.join(process.cwd(), 'static', 'voices');
-const VOICES_META = path.join(VOICES_DIR, 'voices.json');
-
-import { json } from '@sveltejs/kit';
-import { writeFileSync, existsSync, unlinkSync } from 'fs';
-import path from 'path';
 import { queries } from '$lib/server/schema';
 
 const VOICES_DIR = path.join(process.cwd(), 'static', 'voices');
+const VOICES_META = path.join(VOICES_DIR, 'voices.json');
 
 // GET: List all custom voices
 export function GET() {
@@ -45,6 +39,11 @@ export async function POST({ request }) {
         const fileName = `voice_${Date.now()}.${ext}`;
         const filePath = path.join(VOICES_DIR, fileName);
         const publicPath = `/voices/${fileName}`;
+
+        if (!existsSync(VOICES_DIR)) {
+            const { mkdirSync } = await import('fs');
+            mkdirSync(VOICES_DIR, { recursive: true });
+        }
 
         const buffer = Buffer.from(await audioFile.arrayBuffer());
         writeFileSync(filePath, buffer);

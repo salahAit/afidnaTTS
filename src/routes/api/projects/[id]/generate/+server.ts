@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { queries } from '$lib/server/schema';
-import { writeFileSync, existsSync, readFileSync } from 'fs';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'fs';
 import path from 'path';
 import { BUILTIN_VOICES, type Voice } from '$lib/constants/voices';
 
@@ -72,7 +72,10 @@ export async function GET({ url, params }) {
             const buffer = Buffer.from(arrayBuffer);
             
             const fileName = `tts_${projectId}_${Date.now()}.wav`;
-            const filePath = path.join(process.cwd(), 'static', 'audio', fileName);
+            const audioDir = path.join(process.cwd(), 'static', 'audio');
+            if (!existsSync(audioDir)) mkdirSync(audioDir, { recursive: true });
+            
+            const filePath = path.join(audioDir, fileName);
             writeFileSync(filePath, buffer);
             
             const audioPath = `/audio/${fileName}`;
@@ -84,7 +87,10 @@ export async function GET({ url, params }) {
                 if (tsRes.ok) {
                     const tsData = await tsRes.json();
                     const tsFileName = `ts_${projectId}_${Date.now()}.json`;
-                    const tsFilePath = path.join(process.cwd(), 'static', 'timestamps', tsFileName);
+                    const tsDir = path.join(process.cwd(), 'static', 'timestamps');
+                    if (!existsSync(tsDir)) mkdirSync(tsDir, { recursive: true });
+                    
+                    const tsFilePath = path.join(tsDir, tsFileName);
                     writeFileSync(tsFilePath, JSON.stringify(tsData));
                     timestampsUrl = `/timestamps/${tsFileName}`;
                 }

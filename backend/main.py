@@ -1,6 +1,6 @@
 """AfidnaTTS Backend - Main Entry Point"""
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import os
@@ -59,7 +59,7 @@ async def get_audio(filename: str):
     file_path = os.path.join(str(AUDIO_DIR), filename)
     if os.path.exists(file_path):
         return FileResponse(file_path)
-    return {"error": "File not found"}, 404
+    raise HTTPException(status_code=404, detail="File not found")
 
 @app.get("/")
 async def root():

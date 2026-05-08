@@ -10,6 +10,13 @@ export interface Voice {
 // Built-in voices (from F5-TTS examples)
 export const BUILTIN_VOICES: Voice[] = [
 	{
+		id: "ar_default",
+		name: "العربية (Default)",
+		lang: "ar",
+		ref_audio: "/voices/arabic_ref.wav",
+		ref_text: "لا يمر يوم إلا وأستقبل عدة رسائل تتضمن أسئلة ملحة"
+	},
+	{
 		id: "en_default",
 		name: "English Default",
 		lang: "en",

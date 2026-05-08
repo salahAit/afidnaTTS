@@ -45,3 +45,9 @@ CORS_ORIGINS = ["*"]
 
 # ──────────────────────────── GPU ──────────────────────────────
 CLEAR_VRAM_AFTER_GENERATION = True
+
+# ──────────────────────────── Arabic Model ─────────────────────
+# Using the verified Arabic checkpoint and vocab files
+ARABIC_MODEL_CKPT = "/home/msi/Documents/base.pt"
+ARABIC_MODEL_VOCAB = str(STORAGE_DIR / "arabic_model" / "vocab.txt")
+ARABIC_MODEL_CONFIG = str(STORAGE_DIR / "arabic_model" / "F5TTS_Base_8_18.yaml")

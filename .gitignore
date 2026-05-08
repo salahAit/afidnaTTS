@@ -1,41 +1,47 @@
-# dependencies (bun install)
+# Dependencies
 node_modules
+venv
+.venv
+bin/
+obj/
 
-# output
-out
-dist
-*.tgz
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
 
-# code coverage
-coverage
-*.lcov
-
-# logs
-logs
-*.log
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# caches
-.eslintcache
-.cache
+# SvelteKit & Build
+.svelte-kit
+dist/
+out/
+build/
 *.tsbuildinfo
 
-# SvelteKit
-.svelte-kit
-
-# Databases and generated content
-data/
-static/audio/
-
-# IntelliJ based IDEs
-.idea
-
-# Finder (MacOS) folder config
+# Logs & Runtime
+logs/
+*.log
 .DS_Store
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Data & Storage (Don't commit generated assets)
+data/*.db
+data/*.db-journal
+backend/storage/audio/*
+backend/storage/cache/*
+backend/storage/timestamps/*
+!backend/storage/voices/arabic_ref.wav
+static/audio/*
+static/timestamps/*
+static/voices/*
+!static/audio/.gitkeep
+!static/timestamps/.gitkeep
+!static/voices/.gitkeep

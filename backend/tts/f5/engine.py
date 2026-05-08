@@ -2,14 +2,17 @@
 import subprocess
 import os
 import sys
-from backend.core.config import F5_PYTHON, AUDIO_DIR, CLEAR_VRAM_AFTER_GENERATION
+from backend.core.config import (
+    F5_PYTHON, AUDIO_DIR, CLEAR_VRAM_AFTER_GENERATION,
+    ARABIC_MODEL_CKPT, ARABIC_MODEL_VOCAB, ARABIC_MODEL_CONFIG
+)
 from backend.core.logging import get_logger
 from backend.tasks.manager import task_manager
 
 logger = get_logger("f5_engine")
 
 class F5Engine:
-    def generate(self, task_id: str, text: str, ref_audio: str = "", ref_text: str = "", custom_output: str = None):
+    def generate(self, task_id: str, text: str, ref_audio: str = "", ref_text: str = "", custom_output: str = None, lang: str = "ar"):
         output_filename = f"{task_id}.wav"
         output_path = custom_output if custom_output else os.path.join(str(AUDIO_DIR), output_filename)
         
@@ -21,10 +24,20 @@ class F5Engine:
             "--output_dir", os.path.dirname(output_path),
             "--output_file", os.path.basename(output_path)
         ]
+
+        # Use Arabic specialized model if lang is Arabic
+        if lang == "ar":
+            if os.path.exists(ARABIC_MODEL_CKPT):
+                cmd.extend(["--ckpt_file", ARABIC_MODEL_CKPT])
+            if os.path.exists(ARABIC_MODEL_VOCAB):
+                cmd.extend(["--vocab_file", ARABIC_MODEL_VOCAB])
+            if os.path.exists(ARABIC_MODEL_CONFIG):
+                cmd.extend(["--model_cfg", ARABIC_MODEL_CONFIG])
         
         if ref_audio:
             cmd.extend(["--ref_audio", ref_audio])
-        if ref_text:
+            cmd.extend(["--ref_text", ref_text])
+        elif ref_text:
             cmd.extend(["--ref_text", ref_text])
 
         try:
@@ -35,10 +48,8 @@ class F5Engine:
                 line = line.strip()
                 if not line: continue
                 
-                # Extract progress percentage if available
                 if "%" in line:
                     try:
-                        # Simple extraction for tqdm style: " 50%|███"
                         percent = int(line.split("%")[0].split()[-1])
                         task_manager.update_task(task_id, progress=percent, progress_text=line)
                     except:
@@ -62,7 +73,5 @@ class F5Engine:
         finally:
             if CLEAR_VRAM_AFTER_GENERATION:
                 logger.info("Triggering VRAM cleanup (if applicable)")
-                # In a real environment, we'd import torch and call empty_cache() here if running in-process
-                # But since we use subprocess, VRAM is freed when the process ends.
 
 f5_engine = F5Engine()
