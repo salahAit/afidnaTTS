@@ -41,8 +41,18 @@ def main():
     
     # Load config
     model_cfg = OmegaConf.load(args.model_cfg)
-    model_cls = get_class(model_cfg.model.target)
-    model_arc = model_cfg.model.params
+    
+    if hasattr(model_cfg.model, "target"):
+        model_cls = get_class(model_cfg.model.target)
+        model_arc = model_cfg.model.params
+    else:
+        # Fallback for simplified configs
+        if model_cfg.model.backbone == "DiT":
+            from f5_tts.model import DiT
+            model_cls = DiT
+        else:
+            raise ValueError(f"Unsupported backbone: {model_cfg.model.backbone}")
+        model_arc = model_cfg.model.arch
     
     # Load model
     model_obj = load_model(

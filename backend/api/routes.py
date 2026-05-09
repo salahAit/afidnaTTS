@@ -19,10 +19,15 @@ async def generate(request: TTSRequest):
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
     
-    task_id = task_manager.create_task({
-        "lang": request.lang,
-        "voice_id": request.voice_id
-    })
+    task_id = task_manager.create_task(
+        text=request.text,
+        lang=request.lang,
+        voice_id=request.voice_id,
+        metadata={
+            "ref_audio": request.ref_audio,
+            "ref_text": request.ref_text
+        }
+    )
     
     orchestrator.start_generation(
         task_id, 

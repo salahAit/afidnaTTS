@@ -1,59 +1,86 @@
-# Dependencies
-node_modules
-venv
-.venv
+# ─────────────────────────────────────────────────────────────────────────
+# Dependencies & Virtual Environments
+# ─────────────────────────────────────────────────────────────────────────
+node_modules/
+venv/
+.venv/
+backend/tts/f5/venv/
 bin/
 obj/
 
-# Python
+# ─────────────────────────────────────────────────────────────────────────
+# Python & Bytecode
+# ─────────────────────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 .pytest_cache/
 .mypy_cache/
+.ipynb_checkpoints/
 
-# SvelteKit & Build
-.svelte-kit
+# ─────────────────────────────────────────────────────────────────────────
+# SvelteKit & Frontend Build
+# ─────────────────────────────────────────────────────────────────────────
+.svelte-kit/
 dist/
 out/
 build/
 *.tsbuildinfo
 
-# Logs & Runtime
+# ─────────────────────────────────────────────────────────────────────────
+# Databases (Dynamic Data)
+# ─────────────────────────────────────────────────────────────────────────
+*.db
+*.db-journal
+*.sqlite3
+data/
+
+# ─────────────────────────────────────────────────────────────────────────
+# Storage & Models (IMPORTANT: Do NOT commit large weights)
+# ─────────────────────────────────────────────────────────────────────────
+storage/audio/*
+storage/cache/*
+storage/timestamps/*
+storage/arabic_model/*
+storage/kokoro/*
+storage/voices/*
+static/audio/*
+static/timestamps/*
+
+# Preserve directory structure but keep them empty
+!storage/audio/.gitkeep
+!storage/cache/.gitkeep
+!storage/timestamps/.gitkeep
+!storage/voices/.gitkeep
+
+# Preserve specific reference audio needed for engine
+!storage/voices/arabic_ref.wav
+
+# ─────────────────────────────────────────────────────────────────────────
+# Logs, System & IDEs
+# ─────────────────────────────────────────────────────────────────────────
 logs/
 *.log
 .DS_Store
 .idea/
 .vscode/
+*.swp
+*.swo
 
-# Environment
+# ─────────────────────────────────────────────────────────────────────────
+# Environment & Secrets
+# ─────────────────────────────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
 
-# Data & Storage (Don't commit generated assets)
-data/*.db
-data/*.db-journal
-backend/storage/audio/*
-backend/storage/cache/*
-backend/storage/timestamps/*
-backend/storage/arabic_model/*.pt
-backend/storage/arabic_model/*.safetensors
-!backend/storage/voices/arabic_ref.wav
-static/audio/*
-static/timestamps/*
-static/voices/*
-!static/audio/.gitkeep
-!static/timestamps/.gitkeep
-!static/voices/.gitkeep
-
-# F5-TTS Unified
-backend/tts/f5/venv/
-backend/tts/f5/__pycache__/
-backend/tts/f5/f5_tts/**/__pycache__/
+# ─────────────────────────────────────────────────────────────────────────
+# Test Artifacts & Temporary Scripts
+# ─────────────────────────────────────────────────────────────────────────
 test_*.wav
 test_*.txt
-test_*.log
 *.wav
-*.log
+backend/scripts/test_*.py
+backend/scripts/debug_*.py
+backend/scripts/convert_*.py
+backend/scripts/download_*.py

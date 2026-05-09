@@ -22,6 +22,8 @@ class GenerationOrchestrator:
 
     def _process(self, task_id: str, text: str, lang: str, voice_id: str, ref_audio: str, ref_text: str):
         try:
+            import torch
+            
             # Default Arabic reference voice (from IbrahimSalah/Arabic-F5-TTS-v2)
             if lang == "ar" and not ref_audio:
                 ref_audio = str(VOICES_DIR / "arabic_ref.wav")
@@ -35,18 +37,24 @@ class GenerationOrchestrator:
                 target_path = os.path.join(str(AUDIO_DIR), f"{task_id}.wav")
                 shutil.copy(cached_path, target_path)
                 post_processor.process(target_path)
+                
+                # Generate alignment even for cached files if not exists
+                combined_text = text # For cache, we use full text
+                alignment_engine.align(task_id, target_path, combined_text)
+                
                 task_manager.update_task(task_id, status="completed", progress=100, output_path=f"/audio/{task_id}.wav")
-                alignment_engine.align(task_id, target_path, text)
                 return
 
-            # 1. Normalization
-            task_manager.update_task(task_id, progress_text="Normalizing text...")
+            # 1. Normalization & Diacritization
+            task_manager.update_task(task_id, progress_text="Preparing text...")
             if lang == "ar":
                 text = arabic_normalizer.normalize(text)
+                from backend.processing.diacritics.engine import diacritics_engine
+                text = diacritics_engine.process(text)
                 text = arabic_normalizer.clean_arabic(text)
             
             # 2. Chunking
-            task_manager.update_task(task_id, progress_text="Splitting text into chunks...")
+            task_manager.update_task(task_id, progress_text="Chunking text for optimal quality...")
             chunks = chunking_engine.split_text(text)
             
             if not chunks:
@@ -57,21 +65,37 @@ class GenerationOrchestrator:
             engine_name = TTS_ROUTING.get(lang, DEFAULT_ENGINE)
             logger.info(f"Using engine '{engine_name}' for language '{lang}'")
 
+            chunk_files = []
+            target_path = os.path.join(str(AUDIO_DIR), f"{task_id}.wav")
+
             if engine_name == "f5tts":
-                chunk_files = []
                 for i, chunk in enumerate(chunks):
                     chunk_id = f"{task_id}_chunk_{i}"
                     chunk_path = os.path.join(str(AUDIO_DIR), f"{chunk_id}.wav")
-                    task_manager.update_task(task_id, progress_text=f"Generating chunk {i+1}/{len(chunks)}...")
+                    task_manager.update_task(task_id, progress=int((i/len(chunks))*100), progress_text=f"Generating chunk {i+1}/{len(chunks)}...")
                     f5_engine.generate(chunk_id, chunk, ref_audio, ref_text, custom_output=chunk_path, lang=lang)
                     if os.path.exists(chunk_path):
                         chunk_files.append(chunk_path)
                     else:
                         raise Exception(f"Chunk {i} generation failed.")
-                
-                # 4. Stitching
-                task_manager.update_task(task_id, progress_text="Stitching audio chunks...")
-                target_path = os.path.join(str(AUDIO_DIR), f"{task_id}.wav")
+            
+            elif engine_name == "kokoro":
+                from backend.tts.kokoro.engine import kokoro_engine
+                for i, chunk in enumerate(chunks):
+                    chunk_id = f"{task_id}_chunk_{i}"
+                    chunk_path = os.path.join(str(AUDIO_DIR), f"{chunk_id}.wav")
+                    task_manager.update_task(task_id, progress=int((i/len(chunks))*100), progress_text=f"Generating English/French chunk {i+1}/{len(chunks)}...")
+                    kokoro_engine.generate(chunk_id, chunk, voice_id, custom_output=chunk_path)
+                    if os.path.exists(chunk_path):
+                        chunk_files.append(chunk_path)
+                    else:
+                        raise Exception(f"Kokoro chunk {i} failed.")
+            else:
+                raise Exception(f"Engine {engine_name} not supported.")
+
+            # 4. Stitching & Post-processing
+            if chunk_files:
+                task_manager.update_task(task_id, progress_text="Polishing audio...")
                 from backend.utils.audio_utils import stitch_audio
                 stitch_audio(chunk_files, target_path)
                 
@@ -80,19 +104,35 @@ class GenerationOrchestrator:
                     try: os.remove(cf)
                     except: pass
 
-                # 5. Post-Generation: Cache & Alignment
                 if os.path.exists(target_path):
+                    # Normalization & Silence Removal
                     post_processor.process(target_path)
-                    cache_system.save(task_id, text, voice_id, lang)
-                    combined_text = " ".join(chunks)
-                    alignment_engine.align(task_id, target_path, combined_text)
                     
-                    task_manager.update_task(task_id, status="completed", progress=100, output_path=f"/audio/{task_id}.wav")
-            else:
-                task_manager.update_task(task_id, status="failed", progress_text=f"Engine {engine_name} not yet implemented.")
-
+                    # Cache & Alignment
+                    cache_system.save(task_id, text, voice_id, lang)
+                    ts_path = alignment_engine.align(task_id, target_path, " ".join(chunks), lang=lang)
+                    
+                    task_manager.update_task(
+                        task_id, 
+                        status="completed", 
+                        progress=100, 
+                        output_path=f"/audio/{task_id}.wav",
+                        timestamps_path=ts_path
+                    )
+            
         except Exception as e:
             logger.error(f"Critical error in orchestration: {str(e)}")
-            task_manager.update_task(task_id, status="failed", progress_text=f"Orchestrator Error: {str(e)}")
+            task_manager.update_task(task_id, status="failed", progress_text=f"Error: {str(e)}")
+        
+        finally:
+            # Task 7: Mandatory GPU Memory Clear
+            try:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                    logger.info("VRAM cache cleared successfully")
+            except:
+                pass
+
+orchestrator = GenerationOrchestrator()
 
 orchestrator = GenerationOrchestrator()

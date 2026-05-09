@@ -34,13 +34,24 @@ class ArabicNormalizer:
         for abbr, full in self.abbreviations.items():
             text = text.replace(abbr, f" {full} ")
 
-        # 3. Clean up extra spaces
-        text = re.sub(r'\s+', ' ', text).strip()
+        # 3. Handle Numbers using num2words
+        def replace_numbers(match):
+            from num2words import num2words
+            try:
+                num = match.group()
+                return " " + num2words(num, lang='ar') + " "
+            except:
+                return match.group()
         
-        # 4. Handle numbers (Simple replacement for common units)
+        text = re.sub(r'\d+', replace_numbers, text)
+
+        # 4. Handle units
         text = text.replace("kg", " كيلوغرام ")
         text = text.replace("km", " كيلومتر ")
         text = text.replace("$", " دولار ")
+        
+        # 5. Clean up extra spaces
+        text = re.sub(r'\s+', ' ', text).strip()
         
         logger.debug("Text normalized successfully")
         return text
